@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Activity!</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --secondary: #ffcd00;
+            --accent: #ff5a5f;
+            --success: #2ecc71;
+            --bg: #eef2f7;
+            --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font);
+            background: linear-gradient(135deg, #74b9ff, #a29bfe);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        .game-container {
+            background: white;
+            width: 90%;
+            max-width: 700px;
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            position: relative;
+            border: 6px solid var(--secondary);
+        }
+
+        h1 {
+            color: #2d3436;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 0px var(--secondary);
+        }
+
+        h2 {
+            color: #2d3436;
+            margin-bottom: 15px;
+        }
+
+        p {
+            color: #636e72;
+            font-size: 1.2rem;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Buttons */
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 0 #2980b9;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 0 #2980b9;
+        }
+
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #2980b9;
+        }
+
+        .btn-accent {
+            background-color: var(--accent);
+            box-shadow: 0 5px 0 #c0392b;
+        }
+        .btn-accent:hover { box-shadow: 0 7px 0 #c0392b; }
+        .btn-accent:active { box-shadow: 0 2px 0 #c0392b; }
+
+        /* Game UI */
+        .game-meta {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2d3436;
+            background: #f1f2f6;
+            padding: 10px 20px;
+            border-radius: 12px;
+        }
+
+        .timer-bar {
+            width: 100%;
+            height: 15px;
+            background-color: #dfe6e9;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .timer-progress {
+            width: 100%;
+            height: 100%;
+            background-color: var(--accent);
+            transition: width 0.1s linear;
+        }
+
+        /* Grid Setup */
+        .image-board {
+            width: 300px;
+            height: 300px;
+            position: relative;
+            margin-bottom: 25px;
+            border: 4px solid #2d3436;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        }
+
+        .main-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .tile-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            z-index: 2;
+        }
+
+        .tile {
+            background-color: #ffeaa7;
+            border: 1px solid #fdcb6e;
+            transition: transform 0.6s, opacity 0.6s;
+            transform-style: preserve-3d;
+            perspective: 1000px;
+        }
+
+        .tile.flipped {
+            transform: rotateY(180deg);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Choices Grid */
+        .choices-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .choice-btn {
+            background: white;
+            color: #2d3436;
+            border: 3px solid var(--primary);
+            padding: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .choice-btn:hover {
+            background: #e3fafc;
+            transform: scale(1.02);
+        }
+
+        /* Overlay Dialogs */
+        .feedback-pop {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 15px 0;
+            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .good-job { color: var(--success); }
+        .nice-try { color: var(--accent); }
+
+        @keyframes pop {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .hidden { display: none !important; }
+
+        /* Instructions list */
+        .instructions-list {
+            text-align: left;
+            margin: 0 auto 25px auto;
+            max-width: 500px;
+            font-size: 1.1rem;
+            color: #2d3436;
+        }
+        .instructions-list li {
+            margin-bottom: 12px;
+        }
+
+        .audio-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <button class="audio-toggle" id="audioToggle" onclick="toggleMute()">🔊</button>
+
+        <div id="screen-intro" class="screen active">
+            <h1>🎨 Guess the Activity!</h1>
+            <p>Welcome class! Are your eyes and brains sharp enough to guess the fun activity hidden behind the magic puzzle squares?</p>
+            <button class="btn" onclick="goToScreen('instructions')">Let's Play!</button>
+        </div>
+
+        <div id="screen-instructions" class="screen">
+            <h2>📜 How to Play</h2>
+            <ul class="instructions-list">
+                <li>🕒 You have <b>10 seconds</b> per round to guess the image.</li>
+                <li>🧩 Every second, a square tile will flip to reveal a piece of the picture.</li>
+                <li>🛑 Press the <b>"ANSWER"</b> button to stop the timer and show your activity choices!</li>
+                <li>🏆 <b>Scoring System:</b>
+                    <br>• 1-2 tiles open = ⭐⭐⭐ 3 Points
+                    <br>• 3-5 tiles open = ⭐⭐ 2 Points
+                    <br>• 6-8 tiles open = ⭐ 1 Point
+                    <br>• All 9 tiles open = 0 Points
+                </li>
+            </ul>
+            <button class="btn" onclick="startGame()">Start Game 🚀</button>
+        </div>
+
+        <div id="screen-game" class="screen">
+            <div class="game-meta">
+                <div>Round: <span id="round-num">1</span>/4</div>
+                <div>Points: <span id="score-num">0</span></div>
+            </div>
+            
+            <div class="timer-bar">
+                <div id="timer-progress" class="timer-progress"></div>
+            </div>
+
+            <div class="image-board">
+                <img id="game-image" class="main-image" src="" alt="Activity Clue">
+                <div id="tile-grid" class="tile-grid">
+                    </div>
+            </div>
+
+            <button id="action-btn" class="btn btn-accent" onclick="handleAnswerClick()">ANSWER!</button>
+
+            <div id="choices-block" class="choices-container hidden">
+                <button class="choice-btn" onclick="selectChoice('shopping')">Shopping</button>
+                <button class="choice-btn" onclick="selectChoice('hiking')">Hiking</button>
+                <button class="choice-btn" onclick="selectChoice('swimming')">Swimming</button>
+                <button class="choice-btn" onclick="selectChoice('stargazing')">Stargazing</button>
+            </div>
+
+            <div id="feedback-msg" class="feedback-pop hidden"></div>
+            <button id="next-btn" class="btn hidden" onclick="nextRound()">Next Round ➡️</button>
+        </div>
+
+        <div id="screen-end" class="screen">
+            <h2>🎉 Game Finished!</h2>
+            <p>Fantastic effort, class! You did a brilliant job guessing the activities.</p>
+            <h1 style="font-size: 3.5rem; color: var(--primary);">Total Score: <span id="final-score">0</span> pts</h1>
+            <button class="btn" onclick="resetGame()">Play Again 🔄</button>
+        </div>
+    </div>
+
+    <script>
+        // Game Data Configuration
+        const activities = [
+            { name: "hiking", url: "https://github.com/nelsonsia27/game/blob/main/56.jpg?raw=true" },
+            { name: "swimming", url: "https://github.com/nelsonsia27/game/blob/main/58.jpg?raw=true" },
+            { name: "shopping", url: "https://github.com/nelsonsia27/game/blob/main/60.jpg?raw=true" },
+            { name: "stargazing", url: "https://github.com/nelsonsia27/game/blob/main/63.jpg?raw=true" }
+        ];
+
+        // State variables
+        let currentRound = 0;
+        let score = 0;
+        let unrevealedTiles = [];
+        let tilesRevealedCount = 0;
+        let gameTimer = null;
+        let flipInterval = null;
+        let timeLeft = 10; // 10 seconds per round
+        let roundActive = false;
+        let isMuted = false;
+
+        // Audio System Setup (Web Audio API Synthesizer)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        let bgmInterval = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+        }
+
+        function playSound(type) {
+            if (isMuted) return;
+            initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'success') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'fail') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now); // A3
+                osc.frequency.linearRampToValueAtTime(110, now + 0.3);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'flip') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            }
+        }
+
+        // Play an ongoing playful background rhythm
+        function startBGM() {
+            if (bgmInterval) clearInterval(bgmInterval);
+            let step = 0;
+            bgmInterval = setInterval(() => {
+                if (isMuted || !roundActive) return;
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                // Simple happy alternating notes
+                const notes = [261.63, 329.63, 392.00, 329.63]; 
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(notes[step % 4], audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+                step++;
+            }, 500);
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            document.getElementById('audioToggle').innerText = isMuted ? "🔇" : "🔊";
+        }
+
+        // Navigation Engine
+        function goToScreen(screenId) {
+            playSound('click');
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(`screen-${screenId}`).classList.add('active');
+        }
+
+        function startGame() {
+            currentRound = 0;
+            score = 0;
+            document.getElementById('score-num').innerText = score;
+            goToScreen('game');
+            setupRound();
+        }
+
+        // Round Setup
+        function setupRound() {
+            roundActive = true;
+            timeLeft = 10;
+            tilesRevealedCount = 0;
+            
+            // Clean UI toggles
+            document.getElementById('round-num').innerText = currentRound + 1;
+            document.getElementById('action-btn').classList.remove('hidden');
+            document.getElementById('choices-block').classList.add('hidden');
+            document.getElementById('feedback-msg').classList.add('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+            document.getElementById('timer-progress').style.width = '100%';
+
+            // Insert core image
+            document.getElementById('game-image').src = activities[currentRound].url;
+
+            // Build 9 visual cover tiles
+            const grid = document.getElementById('tile-grid');
+            grid.innerHTML = '';
+            unrevealedTiles = [];
+            
+            for(let i = 0; i < 9; i++) {
+                const tile = document.createElement('div');
+                tile.classList.add('tile');
+                tile.dataset.index = i;
+                grid.appendChild(tile);
+                unrevealedTiles.push(i);
+            }
+
+            // Shuffle the order in which tiles open
+            unrevealedTiles.sort(() => Math.random() - 0.5);
+
+            // Turn on sounds and clocks
+            startBGM();
+            startClocks();
+        }
+
+        function startClocks() {
+            // Clock Timer (10 seconds track)
+            const totalDuration = 10000; //ms
+            let startTimestamp = null;
+
+            function updateTimer(timestamp) {
+                if (!roundActive) return;
+                if (!startTimestamp) startTimestamp = timestamp;
+                const elapsed = timestamp - startTimestamp;
+                timeLeft = Math.max(0, 10 - (elapsed / 1000));
+                
+                const percentage = (timeLeft / 10) * 100;
+                document.getElementById('timer-progress').style.width = `${percentage}%`;
+
+                if (elapsed >= totalDuration) {
+                    handleTimeOut();
+                } else {
+                    gameTimer = requestAnimationFrame(updateTimer);
+                }
+            }
+            gameTimer = requestAnimationFrame(updateTimer);
+
+            // Tile revelation system (Flipped automatically roughly every 1.1 seconds so all 9 fit within 10s)
+            flipInterval = setInterval(() => {
+                if (unrevealedTiles.length > 0) {
+                    const targetIndex = unrevealedTiles.pop();
+                    const tiles = document.querySelectorAll('.tile');
+                    tiles[targetIndex].classList.add('flipped');
+                    tilesRevealedCount++;
+                    playSound('flip');
+                }
+            }, 1050);
+        }
+
+        // Interaction Handling
+        function handleAnswerClick() {
+            playSound('click');
+            stopClocks();
+            document.getElementById('action-btn').classList.add('hidden');
+            document.getElementById('choices-block').classList.remove('hidden');
+        }
+
+        function stopClocks() {
+            roundActive = false;
+            cancelAnimationFrame(gameTimer);
+            clearInterval(flipInterval);
+        }
+
+        function handleTimeOut() {
+            stopClocks();
+            // Force reveal everything
+            document.querySelectorAll('.tile').forEach(t => t.classList.add('flipped'));
+            tilesRevealedCount = 9;
+            document.getElementById('action-btn').classList.add('hidden');
+            document.getElementById('choices-block').classList.remove('hidden');
+        }
+
+        function selectChoice(chosenActivity) {
+            const correctAnswer = activities[currentRound].name;
+            const feedbackElement = document.getElementById('feedback-msg');
+            document.getElementById('choices-block').classList.add('hidden');
+            
+            // Reveal all remaining squares to showcase full image
+            document.querySelectorAll('.tile').forEach(t => t.classList.add('flipped'));
+
+            if (chosenActivity === correctAnswer) {
+                // Calculate rewards tier
+                let roundPoints = 0;
+                if (tilesRevealedCount <= 2) roundPoints = 3;
+                else if (tilesRevealedCount <= 5) roundPoints = 2;
+                else if (tilesRevealedCount <= 8) roundPoints = 1;
+                else roundPoints = 0;
+
+                score += roundPoints;
+                document.getElementById('score-num').innerText = score;
+                
+                feedbackElement.innerHTML = `<span class="good-job">Good job! 👍</span><br><span style="font-size:1.2rem; color:#2d3436;">You found "${correctAnswer.toUpperCase()}" with ${tilesRevealedCount} tiles opened. (+${roundPoints} pts)</span>`;
+                playSound('success');
+            } else {
+                feedbackElement.innerHTML = `<span class="nice-try">Nice try! 😮</span><br><span style="font-size:1.2rem; color:#2d3436;">That was actually "${correctAnswer.toUpperCase()}". (+0 pts)</span>`;
+                playSound('fail');
+            }
+
+            feedbackElement.classList.remove('hidden');
+            document.getElementById('next-btn').classList.remove('hidden');
+        }
+
+        function nextRound() {
+            currentRound++;
+            if (currentRound < activities.length) {
+                setupRound();
+            } else {
+                showEndScreen();
+            }
+        }
+
+        function showEndScreen() {
+            goToScreen('end');
+            document.getElementById('final-score').innerText = score;
+        }
+
+        function resetGame() {
+            currentRound = 0;
+            score = 0;
+            goToScreen('intro');
+        }
+    </script>
+</body>
+</html>
